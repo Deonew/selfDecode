@@ -148,7 +148,6 @@ public class MainActivity extends Activity {
                 //crypto    如果需要给媒体数据加密，此处指定一个crypto类.
                 //   flags  如果正在配置的对象是用作编码器，此处加上CONFIGURE_FLAG_ENCODE 标签。
                 mPlayCodec.configure(mediaformat, holder.getSurface(), null, 0);
-//                startDecodingThread();
             }
             //这两个函数的重写，大概是为了不想继承父类该函数的效果？也许
             @Override
@@ -177,8 +176,8 @@ public class MainActivity extends Activity {
 //                if (isRecv){
                     try {
 //                        recvSocket = new Socket("10.105.36.224",18888);
-                        recvSocket = new Socket("192.168.1.105",18888);
-//                        recvSocket = new Socket("10.1.1.1",8888);
+//                        recvSocket = new Socket("192.168.1.105",18888);
+                        recvSocket = new Socket("10.1.1.1",8888);
                         Log.d("ssssssssssssssss","okay");
                         InputStream ins = recvSocket.getInputStream();
 
@@ -286,6 +285,11 @@ public class MainActivity extends Activity {
                                 e.printStackTrace();
                             }
                         }
+//                        ByteBuffer out = mPlayCodec.getOutputBuffer(outIndex);
+//                        out.get
+
+
+
                         boolean doRender = (info.size != 0);
                         mPlayCodec.releaseOutputBuffer(outIndex, doRender);
                     } else {

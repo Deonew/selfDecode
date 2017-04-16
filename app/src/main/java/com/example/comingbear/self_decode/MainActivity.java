@@ -175,6 +175,7 @@ public class MainActivity extends Activity {
 //            while(true){
 //                if (isRecv){
                     try {
+                        
 //                        recvSocket = new Socket("10.105.36.224",18888);
 //                        recvSocket = new Socket("192.168.1.105",18888);
                         recvSocket = new Socket("10.1.1.1",8888);

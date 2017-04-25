@@ -1,9 +1,13 @@
 package com.example.comingbear.self_decode;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.SurfaceTexture;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -11,6 +15,7 @@ import android.os.Message;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.TextureView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -36,6 +41,7 @@ public class MainActivity extends Activity {
     private String TAG = "mmmmmmmmmmmmmmmmmmmmmm";
 
     private SurfaceView mPlaySurface = null;
+    private TextureView mPlayTexture = null;
     private SurfaceHolder mPlaySurfaceHolder;
     private Thread mDecodeThread;
     private MediaCodec mPlayCodec;
@@ -61,7 +67,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        //保持屏幕常亮
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
 
@@ -72,8 +77,22 @@ public class MainActivity extends Activity {
         init(filePath);
 
 
+//        PhoneServer phoneServer = new PhoneServer(this);
+//        phoneServer.start();
 
 
+        WifiManager wifiManager = (WifiManager)this.getSystemService(Context.WIFI_SERVICE);
+        if (!wifiManager.isWifiEnabled()) {
+            wifiManager.setWifiEnabled(true);
+        }
+        WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+        int ipAddress = wifiInfo.getIpAddress();
+        String ipString = (ipAddress & 0xFF ) + "." +
+                ((ipAddress >> 8 ) & 0xFF) + "." +
+                ((ipAddress >> 16 ) & 0xFF) + "." +
+                ( ipAddress >> 24 & 0xFF);
+//        ipinfo.setText(ipString);
+        Toast.makeText(this, ipString, Toast.LENGTH_LONG).show();
 
 //
 //        fileToQueue();
@@ -81,21 +100,22 @@ public class MainActivity extends Activity {
 //        initFos();
     }
 
-    private FileOutputStream fos;
-    public void initFos (){
-        try{
-            fos = new FileOutputStream(new File(Environment.getExternalStorageDirectory() + "/carTempRecvEveryFrameToPut.264"));
-        }catch (IOException e){}
-    }
+//    private FileOutputStream fos;
+//    public void initFos (){
+//        try{
+//            fos = new FileOutputStream(new File(Environment.getExternalStorageDirectory() + "/carTempRecvEveryFrameToPut.264"));
+//        }catch (IOException e){}
+//    }
 
     private boolean isPlay = false;
+
     public void startPlay(View v){
 //        String filePath =  Environment.getExternalStorageDirectory() + "/carTempRecv.264";
 //        init(filePath);
+        isPlay = true;
         startDecodingThread();
-
+        new decodeH2Thread().start();
 //        isPlay = true;
-
     }
     public void startRecv(View v){
         isRecv = true;
@@ -116,8 +136,13 @@ public class MainActivity extends Activity {
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-        mPlaySurface = (SurfaceView) findViewById(R.id.preview);
+
+//        mPlaySurface = (SurfaceView) findViewById(R.id.preview);
+        mPlayTexture = (TextureView) findViewById(R.id.preview);
+
         mPlaySurfaceHolder = mPlaySurface.getHolder();
+//        mPlaySurfaceHolder = mPlayTexture.getHolder();
+
         //回调函数来啦
         mPlaySurfaceHolder.addCallback(new SurfaceHolder.Callback(){
             @Override
@@ -128,7 +153,6 @@ public class MainActivity extends Activity {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-
                 //初始化编码器
                 final MediaFormat mediaformat = MediaFormat.createVideoFormat("video/avc", Video_Width, Video_Height);
 
@@ -141,15 +165,8 @@ public class MainActivity extends Activity {
                 }
                 //设置帧率
                 mediaformat.setInteger(MediaFormat.KEY_FRAME_RATE, PlayFrameRate);
-                //https://developer.android.com/reference/android/media/MediaFormat.html#KEY_MAX_INPUT_SIZE
-                //设置配置参数，参数介绍 ：
-                // format   如果为解码器，此处表示输入数据的格式；如果为编码器，此处表示输出数据的格式。
-                //surface   指定一个surface，可用作decode的输出渲染。
-                //crypto    如果需要给媒体数据加密，此处指定一个crypto类.
-                //   flags  如果正在配置的对象是用作编码器，此处加上CONFIGURE_FLAG_ENCODE 标签。
-                mPlayCodec.configure(mediaformat, holder.getSurface(), null, 0);
+                mPlayCodec.configure(mediaformat, mPlaySurfaceHolder.getSurface(), null, 0);
             }
-            //这两个函数的重写，大概是为了不想继承父类该函数的效果？也许
             @Override
             public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
 
@@ -176,23 +193,27 @@ public class MainActivity extends Activity {
 //                if (isRecv){
                     try {
                         
-//                        recvSocket = new Socket("10.105.36.224",18888);
+                        recvSocket = new Socket("10.105.36.224",18888);
 //                        recvSocket = new Socket("192.168.1.105",18888);
-                        recvSocket = new Socket("10.1.1.1",8888);
+//                        recvSocket = new Socket("10.1.1.1",8888);
+//                        recvSocket = new Socket("10.202.0.199",18888);
+//                        recvSocket = new Socket("10.202.1.69",18888);
                         Log.d("ssssssssssssssss","okay");
                         InputStream ins = recvSocket.getInputStream();
 
-                        video_data_Queue.clear();
+                        getVideoDataQueue().clear();
                         while(true){
                         while(isRecv){
                             byte[] readByte = new byte[2000];
                             int n;
+                            int cnt = 0;
                             while((n = ins.read(readByte))!=-1){
-                                Log.d("ssssssssssss","receive");
+                                cnt++;
+                                Log.d("ssssssssssss","receive"+cnt);
                                 byte[] toOffer = new byte[n];
                                 System.arraycopy(readByte,0,toOffer,0,n);
-                                video_data_Queue.offer(toOffer);
-                                Log.d("ssssssssssssssss",""+video_data_Queue.size());
+                                getVideoDataQueue().offer(toOffer);
+                                Log.d("ssssssssssssssss",""+getVideoDataQueue().size());
                             }
                         }
                         }
@@ -218,19 +239,10 @@ public class MainActivity extends Activity {
         //                decodeLoop1();
                     } catch (Exception e) {}
 
-//            while(true){
-//                if (isPlay){
-//                    try {
-//                        decodeLoop();
-//                        isPlay = false;
-//        //                decodeLoop1();
-//                    } catch (Exception e) {}
-//                }
-//            }
-
         }
         //标记 camera旧api 已改
 
+//        boolean mStopFlag =false;
         private byte[] streamBuffer = null;
         private void decodeLoop(){
 
@@ -243,15 +255,8 @@ public class MainActivity extends Activity {
             long timeoutUs = 10000;
 
 
-            try {
-                streamBuffer = getBytes(mPlayInputStream);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-//            int bytes_cnt = 0;
-            while (mStopFlag == false){
-                end = streamBuffer.length;
-                while (!mStopFlag){
+            while (true){
+                if(isRecv){
                     int inIndex = mPlayCodec.dequeueInputBuffer(timeoutUs);
                     if (inIndex >= 0) {
                         ByteBuffer byteBuffer = mPlayCodec.getInputBuffer(inIndex);
@@ -262,141 +267,122 @@ public class MainActivity extends Activity {
 //                        byte[] b = getAFrame();
 //                        byteBuffer.put(b);
 
-                        //队列获取文件数据
+                        if (getVideoDataQueue().size()>10){
                         byte[] b = getOneNalu();
-                        byteBuffer.put(b);
-                        try{
-                            Thread.sleep(30);
-                        }catch (InterruptedException e){}
-//                        Log.d("llllllll",b.length+"");
-
-                        //在给指定Index的inputbuffer[]填充数据后，调用这个函数把数据传给解码器
-//                        mPlayCodec.queueInputBuffer(inIndex, 0, nextFrameStart - startIndex, 0, 0);
-                        mPlayCodec.queueInputBuffer(inIndex, 0, b.length, 0, 0);
+//                        byte[] b= (byte[]) getVideoDataQueue().poll();
+                            byteBuffer.put(b);
+                            Log.d(TAG,"put one nalu");
+//                        try{
+//                            Thread.sleep(0);
+//                        }catch (InterruptedException e){}
+                            mPlayCodec.queueInputBuffer(inIndex, 0, b.length, 0, 0);
+                        }else {
+                            mPlayCodec.queueInputBuffer(inIndex, 0, 0, 0, 0);
+                        }
 
                     } else {
                         continue;
                     }
-                    int outIndex = mPlayCodec.dequeueOutputBuffer(info, timeoutUs);
-                    if (outIndex >= 0) {
-                        while (info.presentationTimeUs / 1000 > System.currentTimeMillis() - startMs) {
-                            try {
-                                Thread.sleep(100);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-//                        ByteBuffer out = mPlayCodec.getOutputBuffer(outIndex);
-//                        out.get
-
-
-
-                        boolean doRender = (info.size != 0);
-                        mPlayCodec.releaseOutputBuffer(outIndex, doRender);
-                    } else {
-                        Log.e(TAG, "no output");
-                    }
+//                    int outIndex = mPlayCodec.dequeueOutputBuffer(info, timeoutUs);
+//                    if (outIndex >= 0) {
+//                        while (info.presentationTimeUs / 1000 > System.currentTimeMillis() - startMs) {
+//                            try {
+//                                Thread.sleep(100);
+//                            } catch (InterruptedException e) {
+//                                e.printStackTrace();
+//                            }
+//                        }
+//
+//                        boolean doRender = (info.size != 0);
+//                        mPlayCodec.releaseOutputBuffer(outIndex, doRender);
+//                    } else {
+//                        Log.e(TAG, "no output");
+//                    }
                 }
-                mStopFlag = true;
-                mHandler.sendEmptyMessage(0);
             }
 
         }
 
-        int startIndex = 0;
-        private  int nextFrameStart = 0;
-        private int end;
-        private byte[] naluHeader = new byte[]{0, 0, 0, 1};
-        public byte[] getAFrame(){
-            nextFrameStart = KMPMatch(naluHeader, streamBuffer, startIndex + 2, end);
-            byte[] result = new byte[nextFrameStart - startIndex];
-            System.arraycopy(streamBuffer, startIndex, result,0, nextFrameStart - startIndex);
-            startIndex = nextFrameStart;
-            return result;
-        }
-
     }
 
-    public static byte[] getBytes(InputStream is) throws IOException {
-        int len;
-        int size = 1024;
-        byte[] buf;
-        if (is instanceof ByteArrayInputStream) {
-            size = is.available();
-            buf = new byte[size];
-            len = is.read(buf, 0, size);
-        } else {
-//            BufferedOutputStream bos=new BufferedOutputStream(new ByteArrayOutputStream());
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            buf = new byte[size];
-            while ((len = is.read(buf, 0, size)) != -1)
-                bos.write(buf, 0, len);
-            buf = bos.toByteArray();
-        }
-        Log.e("----------", "bbbb");
-        return buf;
-    }
+//        int startIndex = 0;
+//        private  int nextFrameStart = 0;
+//        private int end;
+//        private byte[] naluHeader = new byte[]{0, 0, 0, 1};
+//        public byte[] getAFrame(){
+//            nextFrameStart = KMPMatch(naluHeader, streamBuffer, startIndex + 2, end);
+//            byte[] result = new byte[nextFrameStart - startIndex];
+//            System.arraycopy(streamBuffer, startIndex, result,0, nextFrameStart - startIndex);
+//            startIndex = nextFrameStart;
+//            return result;
+//        }
 
-    private int KMPMatch(byte[] pattern, byte[] bytes, int start, int remain) {
-        try {
-            Thread.sleep(30);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        int[] lsp = computeLspTable(pattern);
 
-        int j = 0;  // Number of chars matched in pattern
-        for (int i = start; i < remain; i++) {
-            while (j > 0 && bytes[i] != pattern[j]) {
-                // Fall back in the pattern
-                j = lsp[j - 1];  // Strictly decreasing
-            }
-            if (bytes[i] == pattern[j]) {
-                // Next char matched, increment position
-                j++;
-                if (j == pattern.length)
-                    return i - (j - 1);
-            }
-        }
-        return -1;  // Not found
-    }
-
-    private int[] computeLspTable(byte[] pattern) {
-        int[] lsp = new int[pattern.length];
-        lsp[0] = 0;  // Base case
-        for (int i = 1; i < pattern.length; i++) {
-            // Start by assuming we're extending the previous LSP
-            int j = lsp[i - 1];
-            while (j > 0 && pattern[i] != pattern[j])
-                j = lsp[j - 1];
-            if (pattern[i] == pattern[j])
-                j++;
-            lsp[i] = j;
-        }
-        return lsp;
-    }
-
-    public void fileToQueue(){
-        File f = new File(Environment.getExternalStorageDirectory() + "/carTempRecv.264");
-        try {
-            FileInputStream fin = new FileInputStream(f);
-            int cnt = 0;
-            int hhh = 0;
-            do{
-                byte[] i = new byte[1024];
-                hhh = fin.read(i);
-                video_data_Queue.offer(i);
-                cnt++;
-            }while(hhh != -1);
-
-//            Log.d("aaaaaaaaaaaaaaaaaaaaaa",cnt+"");
-        }catch (IOException e){}
-//        catch (InterruptedException e){}
-    }
+//    public static byte[] getBytes(InputStream is) throws IOException {
+//        int len;
+//        int size = 1024;
+//        byte[] buf;
+//        if (is instanceof ByteArrayInputStream) {
+//            size = is.available();
+//            buf = new byte[size];
+//            len = is.read(buf, 0, size);
+//        } else {
+////            BufferedOutputStream bos=new BufferedOutputStream(new ByteArrayOutputStream());
+//            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+//            buf = new byte[size];
+//            while ((len = is.read(buf, 0, size)) != -1)
+//                bos.write(buf, 0, len);
+//            buf = bos.toByteArray();
+//        }
+//        Log.e("----------", "bbbb");
+//        return buf;
+//    }
+//
+//    private int KMPMatch(byte[] pattern, byte[] bytes, int start, int remain) {
+//        try {
+//            Thread.sleep(30);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//        int[] lsp = computeLspTable(pattern);
+//
+//        int j = 0;  // Number of chars matched in pattern
+//        for (int i = start; i < remain; i++) {
+//            while (j > 0 && bytes[i] != pattern[j]) {
+//                // Fall back in the pattern
+//                j = lsp[j - 1];  // Strictly decreasing
+//            }
+//            if (bytes[i] == pattern[j]) {
+//                // Next char matched, increment position
+//                j++;
+//                if (j == pattern.length)
+//                    return i - (j - 1);
+//            }
+//        }
+//        return -1;  // Not found
+//    }
+//
+//    private int[] computeLspTable(byte[] pattern) {
+//        int[] lsp = new int[pattern.length];
+//        lsp[0] = 0;  // Base case
+//        for (int i = 1; i < pattern.length; i++) {
+//            // Start by assuming we're extending the previous LSP
+//            int j = lsp[i - 1];
+//            while (j > 0 && pattern[i] != pattern[j])
+//                j = lsp[j - 1];
+//            if (pattern[i] == pattern[j])
+//                j++;
+//            lsp[i] = j;
+//        }
+//        return lsp;
+//    }
 
 
     //-----------------------------------------------------------
     private BlockingQueue<byte[]> video_data_Queue = new ArrayBlockingQueue<byte[]>(10000);
+    public BlockingQueue getVideoDataQueue(){
+        return video_data_Queue;
+    }
     private byte[] currentBuff = new byte[102400];
 
     private byte[] naluHead = {0,0,0,1};
@@ -407,6 +393,7 @@ public class MainActivity extends Activity {
 
     public byte[] getOneNalu(){
         int n = getNextIndex();
+        if (n == -1)return null;
 //        Log.d(TAG,"get one"+n);
         byte[] naluu = new byte[n-currentBuffStart];
         System.arraycopy(currentBuff, currentBuffStart, naluu, 0, n-currentBuffStart);
@@ -427,9 +414,9 @@ public class MainActivity extends Activity {
         //currentBuff don't contain a nalu
         //poll data
         while(nextNaluHead == -1) {
-            if (video_data_Queue.isEmpty()){break;}
+            if (getVideoDataQueue().isEmpty()){break;}
 //                break;
-            byte[] tmp = video_data_Queue.poll();
+            byte[] tmp = (byte[])getVideoDataQueue().poll();
 //            if (tmp == null)
 //                return nextNaluHead;
 
@@ -464,6 +451,73 @@ public class MainActivity extends Activity {
             }
         }
         return nextIndex;
+    }
+
+    class decodeH2Thread extends Thread{
+        @Override
+        public void run() {
+            super.run();
+            while(true){
+                while (isPlay){
+                    MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+                    long startMs = System.currentTimeMillis();
+                    long timeoutUs = 10000;
+                    int outIndex = mPlayCodec.dequeueOutputBuffer(info, timeoutUs);
+                    Log.d(TAG,"get output");
+//                    switch (outIndex){
+//                        case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
+//                            Log.d(TAG, "New format " + mPlayCodec.getOutputFormat());
+//                            break;
+//                        case MediaCodec.INFO_TRY_AGAIN_LATER:
+//                            try {
+//                                sleep(10);
+//                            } catch (InterruptedException e1) {
+//                                e1.printStackTrace();
+//                                return;
+//                            }
+//                            break;
+//                        default:
+//                            while (info.presentationTimeUs / 1000 > System.currentTimeMillis() - startMs) {
+//                                try {
+//                                    Thread.sleep(100);
+//                                } catch (InterruptedException e) {
+//                                    e.printStackTrace();
+//                                }
+//                            }
+////                            mPlayCodec.releaseOutputBuffer(outIndex, true);
+//                            boolean doRender = (info.size != 0);
+//                            mPlayCodec.releaseOutputBuffer(outIndex, doRender);
+//                            break;
+//                    }
+                    if (outIndex<0){
+                        Log.d(TAG,outIndex+"");//-1
+                        continue;
+                    }
+                    if (outIndex >= 0) {
+                        while (info.presentationTimeUs / 1000 > System.currentTimeMillis() - startMs) {
+                            try {
+                                Thread.sleep(100);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        Log.d(TAG,"render");
+                        boolean doRender = (info.size != 0);
+                        mPlayCodec.releaseOutputBuffer(outIndex, doRender);
+                        Log.e(TAG, "no output");
+                        try {
+                            Log.e(TAG, "sleep");
+                            Thread.sleep(10);
+//                            isPlay = true;
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    } else {
+
+                    }
+                }
+            }
+        }
     }
 }
 

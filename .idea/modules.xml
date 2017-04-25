@@ -3,7 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
-      <module fileurl="file://$PROJECT_DIR$/self_decode.iml" filepath="$PROJECT_DIR$/self_decode.iml" />
+      <module fileurl="file://$PROJECT_DIR$/selfDecode.iml" filepath="$PROJECT_DIR$/selfDecode.iml" />
     </modules>
   </component>
 </project>

@@ -10,11 +10,17 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.example.comingbear.self_decode.MainActivity">
 
-    <SurfaceView
+    <!--<SurfaceView-->
+        <!--android:id="@+id/preview"-->
+        <!--android:layout_width="wrap_content"-->
+        <!--android:layout_height="800px"-->
+        <!--/>-->
+    <TextureView
         android:id="@+id/preview"
         android:layout_width="wrap_content"
         android:layout_height="800px"
         />
+
 
     <LinearLayout
         android:layout_width="wrap_content"
